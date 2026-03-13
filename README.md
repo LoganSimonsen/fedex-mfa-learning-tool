@@ -1,71 +1,104 @@
-# Getting Started with Create React App
+# FedEx MFA Demo
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a React + Express demo for authenticating FedEx BYOCA carrier accounts through EasyPost's FedEx MFA flow.
 
-## Available Scripts
+The app supports:
 
-In the project directory, you can run:
+- address validation
+- PIN generation
+- PIN validation
+- invoice validation
+- FedEx pre-validation guidance
 
-### `npm start`
+## How It Works
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+EasyPost does not allow these requests directly from the browser, so the app uses an Express proxy for `/api/fedex/*`.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Users enter their own EasyPost API key in the UI for the current session. The key is:
 
-### `npm test`
+- kept in browser memory only
+- sent to the backend per request in a header
+- not stored in local storage
+- not read from a shared production environment variable
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Only an EasyPost production API key will work for this flow.
 
-### `npm run build`
+Successful authentication creates or updates a real FedEx carrier account on the user's EasyPost profile.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Local Development
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Install dependencies:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+npm install
+```
 
-### `npm run eject`
+Run the Express backend:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+npm run server
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Run the React development server in a separate terminal:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+npm start
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Local URLs:
 
-## Learn More
+- frontend: `http://localhost:3000`
+- backend: `http://localhost:3001`
+- health check: `http://localhost:3001/api/health`
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+The React app uses the `proxy` setting in [package.json](/Users/logan.simonsen/code/fedex-mfa/fedex-mfa/package.json) during local development so `/api/*` requests are forwarded to the Express server.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Production Build
 
-### Code Splitting
+Build the React app:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```bash
+npm run build
+```
 
-### Analyzing the Bundle Size
+Start the production server:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```bash
+npm run start:prod
+```
 
-### Making a Progressive Web App
+In production, Express serves the compiled React app from `build/` and also handles all `/api/*` requests.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Render Deployment
 
-### Advanced Configuration
+This app is designed to deploy as a single Render Web Service.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Recommended Render settings:
 
-### Deployment
+- Root Directory: `fedex-mfa`
+- Build Command: `npm install && npm run build`
+- Start Command: `npm run start:prod`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Do not configure a shared EasyPost API key in Render environment variables. Each user should provide their own production key in the app UI.
 
-### `npm run build` fails to minify
+## Security Notes
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-# fedex-mfa-learning-tool
+- Do not log the `x-easypost-api-key` header.
+- Do not persist user API keys in a database, cookie, session store, or local storage.
+- Serve the app only over HTTPS in hosted environments.
+- Restrict backend proxy behavior to the FedEx MFA routes used by this app.
+
+## Scripts
+
+- `npm start`: run the React development server
+- `npm run server`: run the Express backend
+- `npm run server:dev`: run the Express backend with `nodemon`
+- `npm run build`: build the React app for production
+- `npm run start:prod`: run the production Express server that serves both the React build and API routes
+- `npm test`: run the test suite
+
+## Notes
+
+- Address validation is always the first required step.
+- PIN options are populated from the EasyPost response when available.
+- The raw API panel in the UI shows the latest request payload, response payload, and HTTP status for demo and troubleshooting purposes.
