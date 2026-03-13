@@ -5,6 +5,8 @@ const initialForm = {
   fedexAccountNumber: "",
   carrierAccountId: "",
   type: "FedexAccount",
+  reference: "",
+  description: "",
   name: "",
   street1: "",
   city: "",
@@ -31,6 +33,36 @@ function maskApiKey(apiKey) {
   }
 
   return `${apiKey.slice(0, 4)}${"*".repeat(apiKey.length - 8)}${apiKey.slice(-4)}`;
+}
+
+function getEndpointDetails(operation, accountNumber) {
+  const normalizedAccountNumber = accountNumber || ":account_number";
+
+  const endpointMap = {
+    "address-validation": {
+      proxy: "/api/fedex/address-validation",
+      easypost: `/v2/fedex_registrations/${normalizedAccountNumber}/address`,
+    },
+    "pin-generate": {
+      proxy: "/api/fedex/pin-generate",
+      easypost: `/v2/fedex_registrations/${normalizedAccountNumber}/pin`,
+    },
+    "pin-validate": {
+      proxy: "/api/fedex/pin-validate",
+      easypost: `/v2/fedex_registrations/${normalizedAccountNumber}/pin/validate`,
+    },
+    "invoice-validate": {
+      proxy: "/api/fedex/invoice-validate",
+      easypost: `/v2/fedex_registrations/${normalizedAccountNumber}/invoice`,
+    },
+  };
+
+  return (
+    endpointMap[operation] || {
+      proxy: "Unknown",
+      easypost: "Unknown",
+    }
+  );
 }
 
 function StepCard({ number, title, active, complete, children }) {
@@ -81,8 +113,10 @@ function App() {
       action: mode,
       type: form.type,
       carrier_account_id: mode === "update" ? form.carrierAccountId : null,
+      reference: form.reference || undefined,
+      description: form.description || undefined,
     };
-  }, [mode, form.type, form.carrierAccountId]);
+  }, [mode, form.type, form.carrierAccountId, form.reference, form.description]);
 
   function addLog(message) {
     const timestamp = new Date().toLocaleTimeString();
@@ -156,6 +190,10 @@ function App() {
       : ["SMS", "CALL", "EMAIL"];
 
   const completedResult = apiResponse?.carrier_account || apiResponse;
+  const endpointDetails = getEndpointDetails(
+    apiOperation,
+    form.fedexAccountNumber,
+  );
 
   async function runApiRequest({ operation, endpoint, requestBody }) {
     if (!easypostApiKey.trim()) {
@@ -510,11 +548,33 @@ function App() {
                 </label>
 
                 <label>
-                  <span>Account name</span>
+                  <span>Name on FedEx account</span>
                   <input
                     value={form.name}
                     onChange={(e) => handleFieldChange("name", e.target.value)}
-                    placeholder="Enter the FedEx account name"
+                    placeholder="Enter the name associated with the FedEx account"
+                  />
+                </label>
+
+                <label>
+                  <span>Reference (optional)</span>
+                  <input
+                    value={form.reference}
+                    onChange={(e) =>
+                      handleFieldChange("reference", e.target.value)
+                    }
+                    placeholder="Optional internal reference"
+                  />
+                </label>
+
+                <label>
+                  <span>Description (optional)</span>
+                  <input
+                    value={form.description}
+                    onChange={(e) =>
+                      handleFieldChange("description", e.target.value)
+                    }
+                    placeholder="Optional carrier account description"
                   />
                 </label>
 
@@ -858,6 +918,14 @@ function App() {
               <div className="json-card">
                 <div className="json-title">Operation</div>
                 <pre>{apiOperation}</pre>
+              </div>
+              <div className="json-card">
+                <div className="json-title">Proxy endpoint</div>
+                <pre>{endpointDetails.proxy}</pre>
+              </div>
+              <div className="json-card">
+                <div className="json-title">EasyPost endpoint</div>
+                <pre>{endpointDetails.easypost}</pre>
               </div>
               <div className="json-card">
                 <div className="json-title">API key</div>
